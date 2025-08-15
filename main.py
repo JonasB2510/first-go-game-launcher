@@ -401,7 +401,7 @@ def reload_available_versions():
     global optionmenu
     global optionmenu_var
     #global windl
-    def save_config():
+    def save_config(value):
         try:
             config_path = os.path.join(os.getenv("appdata"), "first-go-game-launcher")
             config_file = os.path.join(config_path, "config.yml")
@@ -417,7 +417,7 @@ def reload_available_versions():
             if "settings" not in data:
                 data["settings"] = {}
 
-            data["settings"]["version"] = values[0]
+            data["settings"]["version"] = value#values[0]
             
             # Save back to file
             with open(config_file, "w", encoding="utf-8") as f:
@@ -431,13 +431,19 @@ def reload_available_versions():
             print(f"Error saving config: {e}")  # Replace with proper error handling
     while True:
         values = os.listdir(get_config_data()["settings"]["download_dir"])
-        if values == []:
+        if get_config_data()["settings"]["version"] in values:
+            optionmenu_var.set(value=get_config_data()["settings"]["version"])
+        if get_config_data()["settings"]["version"] not in values and values == []:
+            optionmenu_var.set(value="")
             values.append("")
-        if optionmenu_var.get() == "" and values[0] != "":
-            optionmenu_var.set(values[0])
-            save_config()
-        if optionmenu_var.get() not in values:
-            optionmenu_var.set(value=values[0])
+        #if optionmenu_var.get() not in values and get_config_data()["settings"]["version"] not in values:
+        #    print("current selected and saved version not available")
+        #    optionmenu_var.set(value=values[0])
+        #if optionmenu_var.get() == "" and get_config_data()["settings"]["version"] in values:
+        #    #optionmenu_var.set(values[0])
+        #    optionmenu_var.set(get_config_data()["settings"]["version"])
+        #    print("reloading save_config")
+        #    save_config(get_config_data()["settings"]["version"])
         optionmenu.configure(values=values)
         time.sleep(1)
 
