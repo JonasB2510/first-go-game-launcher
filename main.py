@@ -435,6 +435,10 @@ def reload_available_versions():
             optionmenu_var.set(value=get_config_data()["settings"]["version"])
         if get_config_data()["settings"]["version"] not in values and values == []:
             optionmenu_var.set(value="")
+        if get_config_data()["settings"]["version"] not in values and values != []:
+            optionmenu_var.set(value=values[-1])
+            save_config(values[-1])
+        if values == []:
             values.append("")
         #if optionmenu_var.get() not in values and get_config_data()["settings"]["version"] not in values:
         #    print("current selected and saved version not available")
