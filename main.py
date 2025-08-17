@@ -23,7 +23,7 @@ def get_config_data():
         versions_path = os.path.join(config_path, "versions")
         os.makedirs(versions_path, exist_ok=True)
         data = {
-            "settings": {"download_dir": versions_path}
+            "settings": {"download_dir": versions_path, "version": os.listdir(versions_path)[-1]}
         }
         with open(config_file, "w", encoding="utf-8") as f:
             yaml.dump(data, f, allow_unicode=True)
@@ -36,6 +36,7 @@ def open_release_downloader(owner, repo):
     global root
     global windl
     releases = []
+    versions = []
 
     def fetch_releases():
         # Clear previous releases
@@ -139,6 +140,13 @@ def open_release_downloader(owner, repo):
                             with open(asset_path, "wb") as f:
                                 for chunk in r.iter_content(chunk_size=8192):
                                     f.write(chunk)
+                
+                data = {
+                    "metadata": {"version": release_name}
+                }
+                config_file = os.path.join(version_dir, "metadata.yml")
+                with open(config_file, "w", encoding="utf-8") as f:
+                    yaml.dump(data, f, allow_unicode=True)
 
                 messagebox.showinfo("Success", f"Downloaded release '{release_name}' to:\n{version_dir}", parent=windl)
 
@@ -151,23 +159,197 @@ def open_release_downloader(owner, repo):
 
         threading.Thread(target=do_download, daemon=True).start()
 
+    def reload_downloaded_versions():
+        versions.clear()
+        listbox_manage.delete(0, "end")
+        reload_version_folder_button.configure(state="disabled", text="Loading...")
+        data = get_config_data()
+        version_folder = data["settings"]["download_dir"]   
+        if not os.path.exists(version_folder):
+            reload_version_folder_button.configure(state="normal", text="Reload downloaded versions")
+            return  
+        downloaded_versions = os.listdir(version_folder)
+        downloaded_versions.sort(reverse=True)
+        for a in downloaded_versions:
+            full_dir = os.path.join(version_folder, a)
+            meta_data_file = os.path.join(full_dir, "metadata.yml") 
+            if os.path.isdir(full_dir) and os.path.exists(meta_data_file):
+                try:
+                    with open(meta_data_file, "r") as f:
+                        data = yaml.safe_load(f)
+                    current_version = data["metadata"]["version"]
+                    versions.append((a, current_version))
+                    listbox_manage.insert("end", f"{a} - {current_version}")
+                except Exception as e:
+                    print(f"Error reading metadata for {a}: {e}")   
+        reload_version_folder_button.configure(state="normal", text="Reload downloaded versions")
+
+    def get_selected_version():
+        """Get the currently selected version from the listbox"""
+        selection = listbox_manage.curselection()
+        if not selection:
+            messagebox.showwarning("No Selection", "Please select a version first.")
+            return None
+
+        selected_index = selection[0]
+        if selected_index < len(versions):
+            return versions[selected_index][0]  # Return folder name
+        return None
+
+    def rename_version():
+        """Rename the selected version folder"""
+        def do_rename(selected_folder, new_name):
+            #selected_folder = get_selected_version()
+            if not selected_folder:
+                return
+            
+            if not new_name or new_name == selected_folder:
+                return
+
+            # Validate new name (basic validation)
+            if not new_name.strip() or "/" in new_name or "\\" in new_name:
+                messagebox.showerror("Invalid Name", "Invalid folder name. Avoid special characters.")
+                return
+
+            data = get_config_data()
+            version_folder = data["settings"]["download_dir"]
+            old_path = os.path.join(version_folder, selected_folder)
+            new_path = os.path.join(version_folder, new_name.strip())
+
+            # Check if new name already exists
+            if os.path.exists(new_path):
+                messagebox.showerror("Name Exists", f"A folder named '{new_name}' already exists.")
+                return
+
+            try:
+                os.rename(old_path, new_path)
+                messagebox.showinfo("Success", f"Renamed '{selected_folder}' to '{new_name}'")
+                reload_downloaded_versions()  # Refresh the list
+            except Exception as e:
+                messagebox.showerror("Error", f"Failed to rename: {str(e)}")
+        selected_version = get_selected_version()
+        if not selected_version:
+            return
+
+        renamewin = ctk.CTkToplevel()
+        renamewin.title(f"Rename Window")
+        renamewin.geometry("200x150")
+        renamewin.transient(root)  # Make it a child of main window
+        renamewin.grab_set()       # Make it modal
+
+        # Center the window
+        renamewin.update_idletasks()
+        x = (renamewin.winfo_screenwidth() // 2) - (600 // 2)
+        y = (renamewin.winfo_screenheight() // 2) - (550 // 2)
+        renamewin.geometry(f"200x150+{x}+{y}")
+
+        renamewin_text = ctk.StringVar(renamewin, value=selected_version)
+        renamewin_entry = ctk.CTkEntry(renamewin, textvariable=renamewin_text)
+        renamewin_entry.grid(row=0, column=0, sticky="ew", padx=10, pady=10)
+
+        renamewin_button = ctk.CTkButton(renamewin, text="Rename", command=lambda: do_rename(selected_version, renamewin_text.get()))
+        renamewin_button.grid(row=1, column=0, sticky="", padx=10, pady=10)
+
+        renamewin.grid_columnconfigure(0, weight=1)
+
+    def delete_version():
+        """Delete the selected version folder"""
+        selected_folder = get_selected_version()
+        if not selected_folder:
+            return
+
+        # Confirm deletion
+        response = messagebox.askyesno(
+            "Confirm Delete", 
+            f"Are you sure you want to delete '{selected_folder}'?\n\nThis action cannot be undone."
+        )
+
+        if not response:
+            return
+
+        data = get_config_data()
+        version_folder = data["settings"]["download_dir"]
+        folder_path = os.path.join(version_folder, selected_folder)
+
+        try:
+            if os.path.exists(folder_path):
+                shutil.rmtree(folder_path)
+                messagebox.showinfo("Success", f"Deleted '{selected_folder}'")
+                reload_downloaded_versions()  # Refresh the list
+            else:
+                messagebox.showwarning("Not Found", f"Folder '{selected_folder}' not found.")
+        except Exception as e:
+            messagebox.showerror("Error", f"Failed to delete: {str(e)}")
+
     # --- Create popup window ---
     windl = ctk.CTkToplevel()
-    windl.title(f"GitHub Release Downloader - {owner}/{repo}")
-    windl.geometry("600x550")
+    windl.title(f"Version Manager")
+    windl.geometry("600x850")
     windl.transient(root)  # Make it a child of main window
     windl.grab_set()       # Make it modal
-    
+
     # Center the window
     windl.update_idletasks()
     x = (windl.winfo_screenwidth() // 2) - (600 // 2)
     y = (windl.winfo_screenheight() // 2) - (550 // 2)
-    windl.geometry(f"600x550+{x}+{y}")
+    windl.geometry(f"600x850+{x}+{y}")
 
     # Title label
     title_label = ctk.CTkLabel(windl, text=f"Releases for {owner}/{repo}", 
                               font=ctk.CTkFont(size=16, weight="bold"))
     title_label.pack(pady=(20, 10))
+
+    list_manage = ctk.CTkFrame(windl)
+    list_manage.pack(pady=10, padx=20, fill="both", expand=True)
+
+    button_frame = ctk.CTkFrame(list_manage)  # Replace parent_frame with your actual parent
+    button_frame.pack(pady=5)
+    
+    # Rename button
+    rename_button = ctk.CTkButton(
+        button_frame, 
+        text="Rename", 
+        command=rename_version,
+        width=10
+    )
+    rename_button.pack(side="left", padx=5)
+    
+    # Delete button
+    delete_button = ctk.CTkButton(
+        button_frame, 
+        text="Delete", 
+        command=delete_version,
+        width=10
+    )
+    delete_button.pack(side="left", padx=5)
+    
+    # Keep your existing reload button
+    reload_version_folder_button = ctk.CTkButton(
+        button_frame,
+        text="Reload downloaded versions",
+        command=reload_downloaded_versions,
+        width=20
+    )
+    reload_version_folder_button.pack(side="left", padx=5)
+    
+    # Pack scrollbar FIRST on the right side
+    scrollbar_manager = tk.Scrollbar(list_manage, orient="vertical")
+    scrollbar_manager.pack(side="right", fill="y")
+
+    listbox_manage = tk.Listbox(
+        list_manage, 
+        width=70, 
+        height=15,
+        bg="#212121",  # Dark background to match CTk theme
+        fg="white",    # White text
+        selectbackground="#1f538d",  # Blue selection
+        selectforeground="white",
+        relief="flat",
+        borderwidth=0,
+        font=("Segoe UI", 10),
+        yscrollcommand=scrollbar_manager.set  # Connect scrollbar to listbox
+    )
+    listbox_manage.pack(side="left", fill="both", expand=True)
 
     # Fetch button
     fetch_btn = ctk.CTkButton(windl, text="Fetch Releases", command=fetch_releases, width=200)
@@ -177,7 +359,11 @@ def open_release_downloader(owner, repo):
     listbox_frame = ctk.CTkFrame(windl)
     listbox_frame.pack(pady=10, padx=20, fill="both", expand=True)
 
-    # Use standard tkinter Listbox but style it to match CustomTkinter
+    # Pack scrollbar FIRST on the right side
+    scrollbar = tk.Scrollbar(listbox_frame, orient="vertical")
+    scrollbar.pack(side="right", fill="y")
+
+    # Then pack the listbox, filling remaining space
     listbox = tk.Listbox(
         listbox_frame, 
         width=70, 
@@ -188,24 +374,20 @@ def open_release_downloader(owner, repo):
         selectforeground="white",
         relief="flat",
         borderwidth=0,
-        font=("Segoe UI", 10)
+        font=("Segoe UI", 10),
+        yscrollcommand=scrollbar.set  # Connect scrollbar to listbox
     )
-    listbox.pack(pady=10, padx=10, fill="both", expand=True)
+    listbox.pack(side="left", fill="both", expand=True)
 
-    # Scrollbar for listbox
-    scrollbar = tk.Scrollbar(listbox_frame, orient="vertical", command=listbox.yview)
-    scrollbar.pack(side="right", fill="y")
-    listbox.config(yscrollcommand=scrollbar.set)
+    # Configure scrollbar command
+    scrollbar.config(command=listbox.yview)
+
     # Download button
     download_btn = ctk.CTkButton(windl, text="Download", 
                                 command=lambda: download_all(get_config_data()["settings"]["download_dir"]), width=250, height=40)
     download_btn.pack(pady=(10, 20))
 
-    # Instructions label
-    #instructions = ctk.CTkLabel(win, text="1. Click 'Fetch Releases' to load available releases\n2. Select a release from the list\n3. Click download to save source code and assets", 
-    #                           font=ctk.CTkFont(size=11), text_color="gray")
-    #instructions.pack(pady=(0, 10))
-
+    reload_downloaded_versions()
     fetch_releases()
 
     return windl
@@ -248,6 +430,11 @@ def config_configuration_screen():
     win.geometry("600x250")
     win.transient(root)
     win.grab_set()
+
+    win.update_idletasks()
+    x = (win.winfo_screenwidth() // 2) - (600 // 2)
+    y = (win.winfo_screenheight() // 2) - (550 // 2)
+    win.geometry(f"600x250+{x}+{y}")
 
     # Create StringVar first
     version_dir_text = ctk.StringVar()
@@ -367,6 +554,11 @@ def startgame_window():
     win.transient(root)
     win.grab_set()
 
+    win.update_idletasks()
+    x = (win.winfo_screenwidth() // 2) - (600 // 2)
+    y = (win.winfo_screenheight() // 2) - (550 // 2)
+    win.geometry(f"250x250+{x}+{y}")
+
     startmode = "host"
 
     win.grid_columnconfigure(0, weight=1)
@@ -456,7 +648,7 @@ def main():
     global optionmenu_var
     global root
     # --- Main window ---
-    ctk.set_appearance_mode("dark")  # "light" or "dark"
+    ctk.set_appearance_mode("dark")
     ctk.set_default_color_theme("blue")
 
     root = ctk.CTk()
@@ -478,7 +670,7 @@ def main():
 
     file_menu = tk.Menu(menubar, tearoff=0)
     file_menu.add_command(label="Config", command=config_configuration_screen)
-    file_menu.add_command(label="Releases", command=lambda: open_release_downloader(OWNER, REPO))
+    file_menu.add_command(label="Versions", command=lambda: open_release_downloader(OWNER, REPO))
     file_menu.add_separator()
     file_menu.add_command(label="Exit", command=root.quit)
     menubar.add_cascade(label="File", menu=file_menu)
