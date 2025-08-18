@@ -14,6 +14,7 @@ import time
 OWNER = "jonasb2510"       # Hardcoded repo owner
 REPO = "first-go-game"   # Hardcoded repo name
 API_URL = f"https://api.github.com/repos/{OWNER}/{REPO}/releases"
+stop_threads = False
 
 def get_config_data():
     config_path = os.path.join(os.getenv("appdata"), "first-go-game-launcher")
@@ -592,6 +593,7 @@ def startgame_window():
 def reload_available_versions():
     global optionmenu
     global optionmenu_var
+    global stop_threads
     #global windl
     def save_config(value):
         try:
@@ -621,7 +623,7 @@ def reload_available_versions():
             
         except Exception as e:
             print(f"Error saving config: {e}")  # Replace with proper error handling
-    while True:
+    while not stop_threads:
         values = os.listdir(get_config_data()["settings"]["download_dir"])
         if get_config_data()["settings"]["version"] in values:
             optionmenu_var.set(value=get_config_data()["settings"]["version"])
@@ -631,7 +633,8 @@ def reload_available_versions():
         if get_config_data()["settings"]["version"] not in values and values == []:
             optionmenu_var.set(value="")
             values.append("")
-            save_config("")
+            if get_config_data()["settings"]["version"] != "":
+                save_config("")
         #if optionmenu_var.get() not in values and get_config_data()["settings"]["version"] not in values:
         #    print("current selected and saved version not available")
         #    optionmenu_var.set(value=values[0])
@@ -642,11 +645,18 @@ def reload_available_versions():
         #    save_config(get_config_data()["settings"]["version"])
         optionmenu.configure(values=values)
         time.sleep(1)
+    print("thread-1 stopped (reload thread)")
 
 def main():
     global optionmenu
     global optionmenu_var
     global root
+
+    def on_closing():
+        global stop_threads
+        stop_threads = True
+        reload_thread.join()
+        root.quit()
     # --- Main window ---
     ctk.set_appearance_mode("dark")
     ctk.set_default_color_theme("blue")
@@ -672,7 +682,7 @@ def main():
     file_menu.add_command(label="Config", command=config_configuration_screen)
     file_menu.add_command(label="Versions", command=lambda: open_release_downloader(OWNER, REPO))
     file_menu.add_separator()
-    file_menu.add_command(label="Exit", command=root.quit)
+    file_menu.add_command(label="Exit", command=on_closing) #root.quit
     menubar.add_cascade(label="File", menu=file_menu)
 
     root.config(menu=menubar)
@@ -745,6 +755,8 @@ def main():
 
     reload_thread = threading.Thread(target=reload_available_versions)
     reload_thread.start()
+
+    root.protocol("WM_DELETE_WINDOW", on_closing)
 
     root.mainloop()
 
