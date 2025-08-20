@@ -38,10 +38,11 @@ def get_config_data():
     if not os.path.exists(config_file):
         versions_path = os.path.join(config_path, "versions")
         os.makedirs(versions_path, exist_ok=True)
-        if not os.listdir(versions_path)[-1]:
-            version = ""
-        else:
+        try:
             version = os.listdir(versions_path)[-1]
+        except Exception as e:
+            print("No version found normal on first launch!")
+            version = ""
         data = {
             "settings": {"download_dir": versions_path, "version": version}
         }
