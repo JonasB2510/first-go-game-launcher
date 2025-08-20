@@ -17,7 +17,7 @@ REPO = "first-go-game"   # Hardcoded repo name
 API_URL = f"https://api.github.com/repos/{OWNER}/{REPO}/releases"
 stop_threads = False
 
-def get_appdata_dir(app_name: str) -> str:
+def get_appdata_dir():
     system = platform.system()
 
     if system == "Windows":
@@ -27,9 +27,9 @@ def get_appdata_dir(app_name: str) -> str:
     else:
         base_dir = os.getenv("XDG_CONFIG_HOME", os.path.expanduser("~/.config"))
 
-    appdata_path = os.path.join(base_dir, app_name)
-    os.makedirs(appdata_path, exist_ok=True)
-    return appdata_path
+    #appdata_path = os.path.join(base_dir, app_name)
+    os.makedirs(base_dir, exist_ok=True)
+    return base_dir
 
 def get_config_data():
     config_path = os.path.join(get_appdata_dir(), "first-go-game-launcher")#os.getenv("appdata")
