@@ -9,6 +9,7 @@ import yaml
 import shutil
 import subprocess
 import time
+import platform
 
 # --- CONFIG ---
 OWNER = "jonasb2510"       # Hardcoded repo owner
@@ -16,8 +17,22 @@ REPO = "first-go-game"   # Hardcoded repo name
 API_URL = f"https://api.github.com/repos/{OWNER}/{REPO}/releases"
 stop_threads = False
 
+def get_appdata_dir(app_name: str) -> str:
+    system = platform.system()
+
+    if system == "Windows":
+        base_dir = os.getenv("APPDATA", os.path.expanduser("~\\AppData\\Roaming"))
+    elif system == "Darwin":
+        base_dir = os.path.expanduser("~/Library/Application Support")
+    else:
+        base_dir = os.getenv("XDG_CONFIG_HOME", os.path.expanduser("~/.config"))
+
+    appdata_path = os.path.join(base_dir, app_name)
+    os.makedirs(appdata_path, exist_ok=True)
+    return appdata_path
+
 def get_config_data():
-    config_path = os.path.join(os.getenv("appdata"), "first-go-game-launcher")
+    config_path = os.path.join(get_appdata_dir(), "first-go-game-launcher")#os.getenv("appdata")
     os.makedirs(config_path, exist_ok=True)
     config_file = os.path.join(config_path, "config.yml")
     if not os.path.exists(config_file):
@@ -396,7 +411,7 @@ def open_release_downloader(owner, repo):
 
 def optionmenu_callback(choice):
     try:
-        config_path = os.path.join(os.getenv("appdata"), "first-go-game-launcher")
+        config_path = os.path.join(get_appdata_dir(), "first-go-game-launcher")#os.getenv("appdata")
         config_file = os.path.join(config_path, "config.yml")
         
         # Read existing config or create new structure
@@ -463,7 +478,7 @@ def config_configuration_screen():
 
     def save_config():
         try:
-            config_path = os.path.join(os.getenv("appdata"), "first-go-game-launcher")
+            config_path = os.path.join(get_appdata_dir(), "first-go-game-launcher")#os.getenv("appdata")
             config_file = os.path.join(config_path, "config.yml")
             
             # Read existing config or create new structure
@@ -710,7 +725,7 @@ def reload_available_versions():
     #global windl
     def save_config(value):
         try:
-            config_path = os.path.join(os.getenv("appdata"), "first-go-game-launcher")
+            config_path = os.path.join(get_appdata_dir(), "first-go-game-launcher")#os.getenv("appdata")
             config_file = os.path.join(config_path, "config.yml")
             
             # Read existing config or create new structure
@@ -803,7 +818,7 @@ def main():
 
     def reset_config():
         try:
-            config_path = os.path.join(os.getenv("appdata"), "first-go-game-launcher")
+            config_path = os.path.join(get_appdata_dir(), "first-go-game-launcher")#os.getenv("appdata")
             config_file = os.path.join(config_path, "config.yml")
             
             # Read existing config or create new structure
@@ -818,7 +833,7 @@ def main():
                 data["settings"] = {}
             
             # Update the download_dir with current entry value
-            data["settings"]["download_dir"] = os.path.join(os.getenv("appdata"), "first-go-game-launcher", "versions")
+            data["settings"]["download_dir"] = os.path.join(get_appdata_dir(), "first-go-game-launcher", "versions")#os.getenv("appdata")
             
             # Save back to file
             with open(config_file, "w", encoding="utf-8") as f:
@@ -839,7 +854,7 @@ def main():
     try:
         version_values = os.listdir(get_config_data()["settings"]["download_dir"])
     except FileNotFoundError:
-        version_values = os.path.join(os.getenv("appdata"), "first-go-game-launcher", "versions")
+        version_values = os.path.join(get_appdata_dir(), "first-go-game-launcher", "versions")#os.getenv("appdata")
         os.makedirs(version_values, exist_ok=True)
         reset_config()
         messagebox.showerror("Error", f"Version folder got reseted to {version_values} because the custom folder could not be found!", parent=root)
