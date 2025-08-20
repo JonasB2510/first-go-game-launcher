@@ -794,7 +794,7 @@ def main():
     file_menu = tk.Menu(menubar, tearoff=0)
     file_menu.add_command(label="Config", command=config_configuration_screen)
     file_menu.add_command(label="Versions", command=lambda: open_release_downloader(OWNER, REPO))
-    file_menu.add_command(label="Port Forward")
+    #file_menu.add_command(label="Port Forward")
     file_menu.add_separator()
     file_menu.add_command(label="Exit", command=on_closing) #root.quit
     menubar.add_cascade(label="File", menu=file_menu)
