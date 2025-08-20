@@ -38,8 +38,12 @@ def get_config_data():
     if not os.path.exists(config_file):
         versions_path = os.path.join(config_path, "versions")
         os.makedirs(versions_path, exist_ok=True)
+        if not os.listdir(versions_path)[-1]:
+            version = ""
+        else:
+            version = os.listdir(versions_path)[-1]
         data = {
-            "settings": {"download_dir": versions_path, "version": os.listdir(versions_path)[-1]}
+            "settings": {"download_dir": versions_path, "version": version}
         }
         with open(config_file, "w", encoding="utf-8") as f:
             yaml.dump(data, f, allow_unicode=True)
