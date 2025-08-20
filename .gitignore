@@ -184,3 +184,5 @@ cython_debug/
 dl
 test1.py
 pysidegui.py
+version.yml
+ngrokgui.py

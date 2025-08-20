@@ -156,7 +156,7 @@ def open_release_downloader(owner, repo):
             finally:
                 # Re-enable download button
                 download_btn.configure(state="normal", text="Download")
-                windl.destroy()
+                #windl.destroy()
 
         threading.Thread(target=do_download, daemon=True).start()
 
@@ -447,9 +447,17 @@ def config_configuration_screen():
         version_dir = filedialog.askdirectory(initialdir=version_dir_text.get())
         if version_dir:  # Only update if user didn't cancel
             version_dir_text.set(version_dir)
+    
+    def open_version_folder():
+        version_folder_path = version_dir_text.get()
+        if os.path.exists(version_folder_path):
+            os.startfile(version_folder_path)
 
     choose_version_folder_button = ctk.CTkButton(win, text="Choose Folder", command=choose_version_folder)
     choose_version_folder_button.grid(row=0, column=1, sticky="e", padx=10, pady=10)
+
+    open_version_folder_button = ctk.CTkButton(win, text="Open Folder", command=open_version_folder)
+    open_version_folder_button.grid(row=1, column=1, sticky="e", padx=10, pady=10)
 
     win.grid_columnconfigure(0, weight=1)
 
@@ -560,33 +568,138 @@ def startgame_window():
     y = (win.winfo_screenheight() // 2) - (550 // 2)
     win.geometry(f"250x250+{x}+{y}")
 
-    startmode = "host"
+    """Create a customizable start menu based on version.yml configuration"""
+    
+    # Get configuration data
+    download_dir_path = get_config_data()["settings"]["download_dir"]
+    current_version = get_config_data()["settings"]["version"]
+    full_path = os.path.join(download_dir_path, current_version, "source", "version.yml")
 
+    if not os.path.exists(full_path):
+        win.destroy()
+        return
+
+    with open(full_path, "r") as f:
+        version_data = yaml.safe_load(f)
+
+    # Get default mode from config
+    startmode = version_data["version-data"]["standart-mode"]
+    
+    # Configure grid
     win.grid_columnconfigure(0, weight=1)
-
-    def mode_changer(choice):
+    
+    # Storage for UI elements and their data
+    ui_elements = {}
+    current_entries = {}
+    
+    def update_entries_for_mode(selected_mode):
+        """Update entry fields based on selected mode"""
         global startmode
-        global port_text
-        if choice == "host" or choice == "join":
-            startmode = choice
-        if choice == "host":
-            port_text.set(8080)
-        if choice == "join":
-            port_text.set("")
+        startmode = selected_mode
+        
+        # Clear existing entries
+        for entry_widget in current_entries.values():
+            #entry_widget.delete(0, 'end')#.destroy()
+            if not isinstance(entry_widget, ctk.StringVar):
+                entry_widget.destroy()
+        current_entries.clear()
+        
+        # Find the start args configuration
+        start_args_config = None
+        for config_key, config_data in version_data["version-data"]["start-args"].items():
+            if config_data["type"] == "optionmenu":
+                start_args_config = config_data
+                break
+        
+        if not start_args_config:
+            return
+            
+        # Get args for the selected mode
+        mode_args = start_args_config["args"].get(selected_mode, {})
+        
+        # Create entry fields for the selected mode
+        row = 1
+        for arg_key, arg_data in mode_args.items():
+            if arg_data["type"] == "entry":
+                # Create label
+                label = ctk.CTkLabel(win, text=arg_data["name"])
+                label.grid(row=row, column=0, sticky="w", padx=10, pady=(5, 0))
+                
+                # Create entry with default value
+                entry_var = ctk.StringVar(win)
+                entry_var.set(str(arg_data["standard"]))
+                
+                entry = ctk.CTkEntry(win, textvariable=entry_var, width=200)
+                entry.grid(row=row+1, column=0, sticky="ew", padx=10, pady=(0, 10))
+                
+                # Store references
+                current_entries[f"{selected_mode}_{arg_key}_label"] = label
+                current_entries[f"{selected_mode}_{arg_key}_entry"] = entry
+                current_entries[f"{selected_mode}_{arg_key}_var"] = entry_var
+                
+                row += 2
+    
+    def get_current_arg_value():
+        """Get the current argument value based on selected mode"""
+        for key, var in current_entries.items():
+            if key.endswith("_var") and isinstance(var, ctk.StringVar):
+                return var.get()
+        return ""
+    
+    def start_game_wrapper():
+        """Wrapper function to start the game with current settings"""
+        arg_value = get_current_arg_value()
+        startgame(startmode, arg_value)
+    
+    # Create the option menu for mode selection
+    mode_options = []
+    start_args_config = None
+    
+    # Find the optionmenu configuration and extract available modes
+    for config_key, config_data in version_data["version-data"]["start-args"].items():
+        if config_data["type"] == "optionmenu":
+            start_args_config = config_data
+            mode_options = list(config_data["args"].keys())
+            break
+    
+    if mode_options:
+        # Create mode selection dropdown
+        mode_label = ctk.CTkLabel(win, text="Select Mode:")
+        mode_label.grid(row=0, column=0, sticky="w", padx=10, pady=(10, 5))
+        
+        mode_var = ctk.StringVar(win)
+        mode_var.set(startmode)  # Set default mode
+        
+        mode_optionmenu = ctk.CTkOptionMenu(
+            win, 
+            values=mode_options,
+            variable=mode_var,
+            command=update_entries_for_mode,
+            width=200
+        )
+        mode_optionmenu.grid(row=0, column=0, sticky="ew", padx=10, pady=(30, 10))
+        
+        # Initialize with default mode
+        update_entries_for_mode(startmode)
+        
+        # Calculate the row for the start button (after all possible entries)
+        max_entries = max(len(mode_config) for mode_config in start_args_config["args"].values())
+        start_button_row = 1 + (max_entries * 2) + 1
+        
+        # Create start game button
+        start_game_button = ctk.CTkButton(
+            win, 
+            text="Start Game", 
+            command=start_game_wrapper,
+            width=200,
+            height=40
+        )
+        start_game_button.grid(row=start_button_row, column=0, padx=10, pady=20)
+    
 
-    optionmenu = ctk.CTkOptionMenu(win, values=["host", "join"],
-                                         command=mode_changer)#,
-                                         #variable=optionmenu_var)
-    optionmenu.grid(row=0, column=0, sticky="")
 
-    port_text = ctk.StringVar(win)
-    port_entry = ctk.CTkEntry(win, textvariable=port_text)
-    port_text.set(8080)
-
-    port_entry.grid(row=1, column=0, sticky="")
-
-    start_game_button = ctk.CTkButton(win, text="Start game", command=lambda: startgame(startmode, port_text.get()))
-    start_game_button.grid(row=2, column=0)
+    #start_game_button = ctk.CTkButton(win, text="Start game", command=lambda: startgame(startmode, port_text.get()))
+    #start_game_button.grid(row=2, column=0)
 
     win.mainloop()
 
@@ -681,6 +794,7 @@ def main():
     file_menu = tk.Menu(menubar, tearoff=0)
     file_menu.add_command(label="Config", command=config_configuration_screen)
     file_menu.add_command(label="Versions", command=lambda: open_release_downloader(OWNER, REPO))
+    file_menu.add_command(label="Port Forward")
     file_menu.add_separator()
     file_menu.add_command(label="Exit", command=on_closing) #root.quit
     menubar.add_cascade(label="File", menu=file_menu)
