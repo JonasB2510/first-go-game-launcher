@@ -28,7 +28,7 @@ def get_appdata_dir():
         base_dir = os.getenv("XDG_CONFIG_HOME", os.path.expanduser("~/.config"))
 
     #appdata_path = os.path.join(base_dir, app_name)
-    os.makedirs(base_dir, exist_ok=True)
+    #os.makedirs(base_dir, exist_ok=True)
     return base_dir
 
 def get_config_data():
