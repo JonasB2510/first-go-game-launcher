@@ -778,7 +778,8 @@ def reload_available_versions():
         #    optionmenu_var.set(get_config_data()["settings"]["version"])
         #    print("reloading save_config")
         #    save_config(get_config_data()["settings"]["version"])
-        optionmenu.configure(values=values)
+        if not optionmenu._values == values:
+            optionmenu.configure(values=values)
         time.sleep(1)
     print("thread-1 stopped (reload thread)")
 
