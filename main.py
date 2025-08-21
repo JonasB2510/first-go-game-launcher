@@ -543,7 +543,7 @@ def startgame(mode="host", arg="8080"):
     elif system == "Darwin":
         messagebox.showerror("Error", "Diggi ich hab kein macos compile die scheiße selber: 'go build .'")
     else:
-        anwser = messagebox.askquestion("Linux", "Did you 'chmod -R 755 " + data["settings"]["download_dir"], "'?")
+        anwser = messagebox.askquestion("Linux", "Did you 'chmod -R 755 " + data["settings"]["download_dir"] + "'?")
         if anwser == "yes":
             game_exe = os.path.join(data["settings"]["download_dir"], data["settings"]["version"], "source", "main")
         else:
