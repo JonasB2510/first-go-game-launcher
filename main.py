@@ -587,7 +587,11 @@ def startgame_window():
     win.maxsize(width=250, height=250)
     win.geometry("250x250")
     win.transient(root)
-    win.grab_set()
+    if win.winfo_viewable():
+        win.grab_set()
+    else:
+        win.update()
+        win.grab_set()
 
     win.update_idletasks()
     x = (win.winfo_screenwidth() // 2) - (600 // 2)
