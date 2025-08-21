@@ -535,7 +535,17 @@ def startgame(mode="host", arg="8080"):
     """
     global root
     data = get_config_data()
-    game_exe = os.path.join(data["settings"]["download_dir"], data["settings"]["version"], "source", "main.exe")
+
+    system = platform.system()
+
+    if system == "Windows":
+        game_exe = os.path.join(data["settings"]["download_dir"], data["settings"]["version"], "source", "main.exe")
+    elif system == "Darwin":
+        messagebox.showerror("Error", "Diggi ich hab kein macos compile die scheiße selber: 'go build .'")
+    else:
+        game_exe = os.path.join(data["settings"]["download_dir"], data["settings"]["version"], "source", "main")
+
+    #game_exe = os.path.join(data["settings"]["download_dir"], data["settings"]["version"], "source", "main.exe")
     game_dir = os.path.join(data["settings"]["download_dir"], data["settings"]["version"], "source")
     
     if not os.path.exists(game_exe):
@@ -554,7 +564,6 @@ def startgame(mode="host", arg="8080"):
             else:
                 print(f"Invalid mode: {mode}")
                 return
-            
             print(f"Running command: {' '.join(cmd)}")
             subprocess.run(cmd, cwd=game_dir, check=True)
         except subprocess.CalledProcessError as e:
