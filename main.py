@@ -568,11 +568,16 @@ def startgame(mode="host", arg="8080"):
 
 def startgame_window():
     global startmode
-    global port_text
-    global port_entry
 
     data = get_config_data()
     if data["settings"]["version"] == "":
+        return
+    
+    download_dir_path = get_config_data()["settings"]["download_dir"]
+    current_version = get_config_data()["settings"]["version"]
+    full_path = os.path.join(download_dir_path, current_version, "source", "version.yml")
+
+    if not os.path.exists(full_path):
         return
 
     win = ctk.CTkToplevel()
@@ -589,15 +594,7 @@ def startgame_window():
     win.geometry(f"250x250+{x}+{y}")
 
     """Create a customizable start menu based on version.yml configuration"""
-    
-    # Get configuration data
-    download_dir_path = get_config_data()["settings"]["download_dir"]
-    current_version = get_config_data()["settings"]["version"]
-    full_path = os.path.join(download_dir_path, current_version, "source", "version.yml")
 
-    if not os.path.exists(full_path):
-        win.destroy()
-        return
 
     with open(full_path, "r") as f:
         version_data = yaml.safe_load(f)
