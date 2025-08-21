@@ -578,6 +578,7 @@ def startgame_window():
     full_path = os.path.join(download_dir_path, current_version, "source", "version.yml")
 
     if not os.path.exists(full_path):
+        messagebox.showerror("Error", "version.yml file not found!")
         return
 
     win = ctk.CTkToplevel()
